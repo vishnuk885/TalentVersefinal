@@ -1,0 +1,21 @@
+export const roleCatalog = [
+  { title:'Generative AI Engineer', level:'Early career', category:'Artificial intelligence', description:'Build and evaluate applications powered by foundation models, retrieval, and practical AI workflows.', skills:['Python','LLM APIs','Prompt engineering','RAG','Evaluation','SQL'], resources:[{label:'Hugging Face NLP course',url:'https://huggingface.co/learn/nlp-course'},{label:'OpenAI API guides',url:'https://platform.openai.com/docs/guides'}] },
+  { title:'Frontend Developer', level:'Entry to mid-level', category:'Software engineering', description:'Create accessible, responsive product experiences with modern browser technologies.', skills:['JavaScript','TypeScript','React','HTML','CSS','Testing'], resources:[{label:'MDN Learn Web Development',url:'https://developer.mozilla.org/en-US/docs/Learn_web_development'},{label:'React documentation',url:'https://react.dev/learn'}] },
+  { title:'Backend Developer', level:'Entry to mid-level', category:'Software engineering', description:'Design APIs, data models, and reliable services that power customer-facing products.', skills:['Node.js','REST APIs','SQL','Authentication','Testing','Cloud'], resources:[{label:'Node.js Learn',url:'https://nodejs.org/en/learn'},{label:'PostgreSQL Tutorial',url:'https://www.postgresql.org/docs/current/tutorial.html'}] },
+  { title:'Data Analyst', level:'Entry to mid-level', category:'Data and analytics', description:'Turn business questions into trustworthy analysis, dashboards, and clear recommendations.', skills:['SQL','Python','Statistics','Data visualization','Excel','Communication'], resources:[{label:'SQLBolt',url:'https://sqlbolt.com/'},{label:'Kaggle Learn',url:'https://www.kaggle.com/learn'}] },
+  { title:'Machine Learning Engineer', level:'Early career', category:'Artificial intelligence', description:'Develop, evaluate, and serve machine learning models within dependable software systems.', skills:['Python','Machine learning','Statistics','PyTorch','Model evaluation','MLOps'], resources:[{label:'scikit-learn tutorials',url:'https://scikit-learn.org/stable/tutorial/index.html'},{label:'PyTorch tutorials',url:'https://pytorch.org/tutorials/'}] },
+  { title:'Product Designer', level:'Entry to mid-level', category:'Design', description:'Research user needs and shape product flows, prototypes, and cohesive interface systems.', skills:['Figma','UX research','Prototyping','Interaction design','Accessibility','Communication'], resources:[{label:'Figma Learn',url:'https://help.figma.com/hc/en-us/categories/360002051613-Learn-design'},{label:'Laws of UX',url:'https://lawsofux.com/'}] },
+  { title:'Cloud / DevOps Engineer', level:'Early career', category:'Cloud infrastructure', description:'Automate delivery and operate secure, observable infrastructure for software teams.', skills:['Linux','Networking','Docker','CI/CD','AWS','Monitoring'], resources:[{label:'Docker Get Started',url:'https://docs.docker.com/get-started/'},{label:'AWS Skill Builder',url:'https://skillbuilder.aws/'}] },
+  { title:'Cybersecurity Analyst', level:'Early career', category:'Security', description:'Monitor systems, investigate suspicious activity, and improve practical security controls.', skills:['Networking','Linux','Security fundamentals','SIEM','Python','Incident response'], resources:[{label:'OWASP Top 10',url:'https://owasp.org/www-project-top-ten/'},{label:'Cisco Skills for All',url:'https://skillsforall.com/'}] }
+];
+
+const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9+#.]/g, ' ').trim();
+export function suggestRoles(profileSkills: string[], targetRole = '') {
+  const known = profileSkills.map(normalize);
+  return roleCatalog.map(role => {
+    const matched = role.skills.filter(skill => known.some(k => k.includes(normalize(skill)) || normalize(skill).includes(k)));
+    const gaps = role.skills.filter(skill => !matched.includes(skill));
+    const titleMatch = targetRole && normalize(role.title).includes(normalize(targetRole)) ? 25 : 0;
+    return { ...role, matched_skills: matched, growth_skills: gaps.slice(0, 4), match_score: Math.min(98, Math.round((matched.length / role.skills.length) * 75 + titleMatch + 20)) };
+  }).sort((a,b) => b.match_score - a.match_score).slice(0, 6);
+}
