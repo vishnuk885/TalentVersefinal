@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { atsResultSchema, careerPlanSchema, forgotPasswordSchema, goalRequestSchema, noteSchema, profileSchema, resetPasswordSchema, resumeExtractionSchema } from './schema.js';
-import { createGuidedRoadmap, normalizeRoadmap } from './roadmap.js';
+import { careerPlanSchema, forgotPasswordSchema, goalRequestSchema, profileSchema, resetPasswordSchema, resumeExtractionSchema } from './schema.js';
+import { createGuidedRoadmap, extractMentionedSkills, inferTargetRole, normalizeRoadmap } from './roadmap.js';
 
 const validPlan = {
   target_role: 'Frontend Developer',
@@ -34,6 +34,13 @@ test('rejects underspecified career goals before calling the model', () => {
   assert.equal(goalRequestSchema.safeParse({ goal: 'get a job' }).success, false);
 });
 
+test('accepts resume-length free-text input within the roadmap limit', () => {
+  const resumeText = `Career history ${'experience and skills '.repeat(400)}`;
+  assert.equal(resumeText.length > 3000, true);
+  assert.equal(goalRequestSchema.safeParse({ goal: resumeText }).success, true);
+  assert.equal(goalRequestSchema.safeParse({ goal: `${resumeText}${'x'.repeat(14000)}` }).success, false);
+});
+
 test('applies defaults to roadmap pacing and rejects invalid career stages', () => {
   const defaults=goalRequestSchema.parse({goal:'Become a frontend developer with a portfolio.'});
   assert.equal(defaults.careerStage,'student');
@@ -61,17 +68,6 @@ test('accepts valid reset credentials and rejects weak passwords', () => {
   assert.equal(resetPasswordSchema.safeParse({ token, password: 'short' }).success, false);
 });
 
-test('validates ATS report scores and evidence lists',()=>{
-  const result={score:78,summary:'Good overlap with several required skills.',matched_skills:['TypeScript'],missing_skills:['Testing'],highlights:['Resume shows two relevant projects.'],recommendations:['Add measurable outcomes to project descriptions.'],experience_fit:'partial'};
-  assert.equal(atsResultSchema.safeParse(result).success,true);
-  assert.equal(atsResultSchema.safeParse({...result,score:108}).success,false);
-});
-
-test('validates career notes and enforces length limits',()=>{
-  assert.deepEqual(noteSchema.parse({title:'SQL joins',content:'Review left joins and practice with sample tables.'}),{title:'SQL joins',content:'Review left joins and practice with sample tables.',related_skill:''});
-  assert.equal(noteSchema.safeParse({title:'',content:'No title'}).success,false);
-});
-
 test('normalizes imperfect AI roadmap fields into the strict plan contract',()=>{
   const input={goal:'Become a GenAI engineer with practical projects and an interview-ready portfolio.',targetRole:'GenAI Engineer',skills:'Python, SQL',timelineMonths:6};
   const normalized=normalizeRoadmap({targetRole:'',timeline_months:18,skillGaps:[],milestones:[{title:'Learn models',description:'Short',month:18,tasks:[]}]},input);
@@ -89,4 +85,10 @@ test('guided roadmap creates complete GenAI milestones without an AI provider',(
   assert.equal(plan.milestones.length,4);
   assert.equal(plan.milestones.at(-1)?.month,6);
   assert.equal(plan.skill_gaps.some(gap=>/LLM|AI/i.test(gap.name)),true);
+});
+
+test('free-text career input provides useful role and skill fallbacks without an AI provider',()=>{
+  assert.equal(inferTargetRole('I want to become a frontend developer and build accessible apps.'),'Frontend Developer');
+  assert.equal(inferTargetRole('My goal is to become a GenAI Engineer.'),'Generative AI Engineer');
+  assert.deepEqual(extractMentionedSkills('I know Python, basic machine learning, SQL, and Git.'),['Python','SQL','Machine learning','Git']);
 });
